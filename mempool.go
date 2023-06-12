@@ -75,6 +75,7 @@ func (p *Pool) Put(b *bytes.Buffer) {
 	// Increment the length of the pool and unlock
 	// the mutex to allow other goroutines to access
 	// the pool.
+	//lock here ,cannot block the p.pool chan
 	p.lock.Lock()
 	p.len++
 	p.lock.Unlock()
