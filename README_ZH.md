@@ -1,7 +1,7 @@
 # Mempool
 
 Mempool 是一个用于减少内存分配和提高字节缓冲区处理性能的内存池库。
-实现了一个 No GC 内存池，用于重用 bytes.Buffer 对象，以减少内存分配和垃圾回收的开销。
+实现了一个 Limited GC 内存池，用于重用 bytes.Buffer 对象，以减少内存分配和垃圾回收的开销。
 
 ## 安装
 
@@ -17,7 +17,7 @@ package main
 import (
 "fmt"
 
-"github.com/yourusername/mempool"
+"github.com/matyle/mempool"
 )
 
 func main() {

@@ -2,12 +2,12 @@
 
 Mempool is a memory pool library for reducing allocations and improving performance when dealing with byte buffers.
 
-Mempool is never GC
+Mempool is Limited GC
 
 ## Installation
 
 ```sh
-go get github.com/yourusername/mempool
+go get github.com/matyle/mempool
 ```
 
 ## Usage
@@ -18,7 +18,7 @@ package main
 import (
 "fmt"
 
-"github.com/yourusername/mempool"
+"github.com/matyle/mempool"
 )
 
 func main() {

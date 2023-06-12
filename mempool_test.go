@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"testing"
+	"time"
 )
 
 func TestPool(t *testing.T) {
@@ -11,12 +12,20 @@ func TestPool(t *testing.T) {
 
 	// Test Get and Put
 	for i := 0; i < poolSize*2; i++ {
-		buf := pool.Get()
-		if buf.Cap() != bufferCap {
-			t.Errorf("Expected buffer capacity to be %d, but got %d", bufferCap, buf.Cap())
-		}
-		pool.Put(buf)
+		go func() {
+			buffer := pool.Get()
+			if buffer == nil {
+				t.Errorf("Expected buffer to be not nil")
+			}
+			if buffer.Cap() != bufferCap {
+				t.Errorf("Expected buffer capacity to be %d, but got %d", bufferCap, buffer.Cap())
+			}
+
+			pool.Put(buffer)
+		}()
 	}
+
+	time.Sleep(5 * time.Second)
 
 	// Test Resize
 	newSize := 10

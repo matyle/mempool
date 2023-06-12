@@ -29,6 +29,10 @@ type Pool struct {
 	// added to the pool for future use.
 	bufferInitCap int
 
+	// maxBufferSize represents the maximum size of the buffer
+	// if the buffer is larger than this size, it will not be added to the pool.
+	maxBufferSize int
+
 	// lock is a read-write mutex that can be used to safely modify the
 	// pool attributes.
 	lock *sync.RWMutex
@@ -38,7 +42,7 @@ type Pool struct {
 }
 
 // NewPool creates a new Pool object with a given routineSize and cap.
-func NewPool(routineSize, cap int) *Pool {
+func NewPool(routineSize, capacity int) *Pool {
 	// Create a channel that can hold *bytes.Buffer objects with a capacity of routineSize.
 	pool := make(chan *bytes.Buffer, routineSize)
 	// Create a Mutex object to manage access to the channel.
@@ -47,7 +51,7 @@ func NewPool(routineSize, cap int) *Pool {
 	return &Pool{
 		pool:          pool,
 		lock:          lock,
-		bufferInitCap: cap,
+		bufferInitCap: capacity,
 		poolSize:      routineSize,
 	}
 }
@@ -72,15 +76,28 @@ func (p *Pool) Get() *bytes.Buffer {
 }
 
 // Put adds a buffer to the pool.
-// It resets the buffer before adding it to the pool.
+//
+// If the buffer's capacity is at least twice its length, a new buffer
+// is created with the same length as the input buffer and added to the pool.
+// Otherwise, the input buffer is reset and added to the pool.
+//
+// Finally, the length of the pool is incremented and the mutex is unlocked
+// to allow other goroutines to access the pool.
 func (p *Pool) Put(b *bytes.Buffer) {
-	b.Reset()
-	p.pool <- b
+	cap := b.Cap()
+	len := b.Len()
 
-	// Increment the length of the pool and unlock
-	// the mutex to allow other goroutines to access
-	// the pool.
-	//lock here ,cannot block the p.pool chan
+	if len != 0 && cap >= 2*len {
+		// Create a new buffer with the same length as the input buffer
+		newBuf := bytes.NewBuffer(make([]byte, 0, len))
+		p.pool <- newBuf
+	} else {
+		// Reset the input buffer before adding it to the pool
+		b.Reset()
+		p.pool <- b
+	}
+
+	// Increment the length of the pool and unlock the mutex
 	p.lock.Lock()
 	p.len++
 	p.lock.Unlock()
@@ -89,17 +106,17 @@ func (p *Pool) Put(b *bytes.Buffer) {
 // Resize resizes the pool to a new maxSize. If the new size is smaller than the current size,
 // it does nothing. If the new size is larger than the current size, then it creates a new pool
 // with the desired size and adds elements from the current pool.
-func (p *Pool) Resize(maxSize int) {
+func (p *Pool) Resize(poolSize int) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	// do nothing if new size is smaller than the current size
-	if maxSize < len(p.pool) {
+	if poolSize < len(p.pool) {
 		return
 	}
 
 	// create a new pool with the desired size
-	newPool := make(chan *bytes.Buffer, maxSize)
+	newPool := make(chan *bytes.Buffer, poolSize)
 
 	// add elements from current pool to new pool
 	for i := 0; i < len(p.pool); i++ {
@@ -108,7 +125,7 @@ func (p *Pool) Resize(maxSize int) {
 
 	// replace the current pool with the new pool
 	p.pool = newPool
-	p.poolSize = maxSize
+	p.poolSize = poolSize
 }
 
 func (p *Pool) GetLen() int {
