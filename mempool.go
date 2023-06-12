@@ -5,6 +5,12 @@ import (
 	"sync"
 )
 
+const (
+	KB = 1 << 10
+	MB = 1 << 20
+	GB = 1 << 30
+)
+
 // reuse the memory slice
 // and never gc
 
@@ -19,10 +25,9 @@ type Pool struct {
 	// access the pool.
 	poolSize int
 
-	// bufferCap is the estimated size of the buffers that will be stored
-	// in the pool. If a buffer exceeds this size, it will be resized and
+	// bufferInitCap represents the capacity of the one buffer  that will be
 	// added to the pool for future use.
-	bufferCap int
+	bufferInitCap int
 
 	// lock is a read-write mutex that can be used to safely modify the
 	// pool attributes.
@@ -40,10 +45,10 @@ func NewPool(routineSize, cap int) *Pool {
 	lock := &sync.RWMutex{}
 	// Create a new Pool object with the given parameters.
 	return &Pool{
-		pool:      pool,
-		lock:      lock,
-		bufferCap: cap,
-		poolSize:  routineSize,
+		pool:          pool,
+		lock:          lock,
+		bufferInitCap: cap,
+		poolSize:      routineSize,
 	}
 }
 
@@ -57,7 +62,7 @@ func (p *Pool) Get() *bytes.Buffer {
 	// If the number of available buffers is less than the pool size,
 	// create and return a new buffer.
 	if p.len < p.poolSize {
-		return bytes.NewBuffer(make([]byte, 0, p.bufferCap))
+		return bytes.NewBuffer(make([]byte, 0, p.bufferInitCap))
 	}
 
 	// Otherwise, retrieve a buffer from the pool and return it.
