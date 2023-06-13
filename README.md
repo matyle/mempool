@@ -45,9 +45,6 @@ pool.Put(buf)
 - Put(b \*bytes.Buffer)
   Adds a buffer to the pool. It resets the buffer before adding it to the pool.
 
-- Resize(maxSize int)
-  Resizes the pool to a new size. If the new size is smaller than the current size, it does nothing. If the new size is larger than the current size, then it creates a new pool with the desired size and adds elements from the current pool.
-
 ## License
 
 MIT

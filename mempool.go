@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -48,6 +49,12 @@ func NewPool(routineSize, capacity int) *Pool {
 	pool := make(chan *bytes.Buffer, routineSize)
 	// Create a Mutex object to manage access to the channel.
 	lock := &sync.RWMutex{}
+
+	for i := 0; i < routineSize; i++ {
+		// Add a new buffer to the pool.
+		pool <- bytes.NewBuffer(make([]byte, 0, capacity))
+	}
+	fmt.Println("pool size:", len(pool))
 	// Create a new Pool object with the given parameters.
 	return &Pool{
 		pool:          pool,
@@ -57,22 +64,16 @@ func NewPool(routineSize, capacity int) *Pool {
 	}
 }
 
+//Get and Put should be used in pairs
+
 // Get retrieves a buffer from the pool. If the pool does not have
 // any available buffers, it will create a new buffer and return it.
 func (p *Pool) Get() *bytes.Buffer {
 	// Acquire lock to ensure thread safety
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
 	// If the number of available buffers is less than the pool size,
 	// create and return a new buffer.
-	if p.len < p.poolSize {
-		return bytes.NewBuffer(make([]byte, 0, p.bufferInitCap))
-	}
-
 	// Otherwise, retrieve a buffer from the pool and return it.
 	buf := <-p.pool
-	p.len--
 	return buf
 }
 
@@ -108,44 +109,15 @@ func (p *Pool) Put(b *bytes.Buffer) {
 	}
 
 	// Increment the length of the pool and unlock the mutex
-	p.lock.Lock()
-	p.len++
-	p.lock.Unlock()
+	// p.lock.Lock()
+	// p.len++
+	// p.lock.Unlock()
 }
 
-// Resize resizes the pool to a new maxSize. If the new size is smaller than the current size,
-// it does nothing. If the new size is larger than the current size, then it creates a new pool
-// with the desired size and adds elements from the current pool.
-func (p *Pool) Resize(poolSize int) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	// do nothing if new size is smaller than the current size
-	if poolSize < len(p.pool) {
-		return
-	}
-
-	// create a new pool with the desired size
-	newPool := make(chan *bytes.Buffer, poolSize)
-
-	// add elements from current pool to new pool
-	for i := 0; i < len(p.pool); i++ {
-		newPool <- <-p.pool
-	}
-
-	// replace the current pool with the new pool
-	p.pool = newPool
-	p.poolSize = poolSize
+func (p *Pool) Len() int {
+	return len(p.pool)
 }
 
-func (p *Pool) GetLen() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.len
-}
-
-func (p *Pool) GetPoolSize() int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return p.poolSize
+func (p *Pool) Cap() int {
+	return cap(p.pool)
 }
