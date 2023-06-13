@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"bytes"
+	"log"
 	"sync"
 )
 
@@ -90,11 +91,20 @@ func (p *Pool) Put(b *bytes.Buffer) {
 	if len != 0 && cap >= 2*len {
 		// Create a new buffer with the same length as the input buffer
 		newBuf := bytes.NewBuffer(make([]byte, 0, len))
-		p.pool <- newBuf
+		// select {
+		case p.pool <- newBuf:
+		// default:
+			// Discard the buffer if the pool is full
+			// log.Println("pool is full")
+		// }
 	} else {
 		// Reset the input buffer before adding it to the pool
 		b.Reset()
-		p.pool <- b
+		// select {
+		case p.pool <- b:
+		// default:
+		// 	log.Println("pool is full")
+		// }
 	}
 
 	// Increment the length of the pool and unlock the mutex
